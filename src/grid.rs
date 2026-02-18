@@ -32,13 +32,13 @@ pub struct Grid {
    cell_text_cache: Cache,
    grid_cache: Cache,
    translation: PointW,
-   bitmap: Bitmap,   // to store the off-screen image used at small scale for performance
+   bitmap: Bitmap, // to store the off-screen image used at small scale for performance
    mesh: MeshData,
 
-   scale: ScaleWS,            // Current scale, should never be zero
+   scale: ScaleWS, // Current scale, should never be zero
    scale_up: ScaleSS,
    scale_down: ScaleSS,
-   previous_size: Size,       // Previous size for change scale when resizing
+   previous_size: Size, // Previous size to maintain scale when resizing
 
    world: Rc<RefCell<World>>,
    nonscaled_size: SizeW, // for performance, world size * CELL_SIZE
@@ -120,6 +120,19 @@ impl Grid {
          illumination: false,
          last_tick: usize::MAX,
       }
+   }
+
+
+   // Keep the same size when reloading the world
+   pub fn prev_state(&self) -> PrevState {
+      PrevState {
+         previous_size: self.previous_size
+      }
+   }
+
+
+   pub fn restore_state(&mut self, prev_state: PrevState) {
+      self.previous_size = prev_state.previous_size;
    }
 
 
@@ -916,6 +929,11 @@ impl<'a, Message> From<MeshWidget<'a>> for Element<'a, Message> {
 }
 
 
+#[derive(Default, Debug, Clone, Copy)]
+pub struct PrevState {
+   // Previous size to maintain scale when reloading the world
+   previous_size: Size,
+}
 
 
 #[cfg(test)]

@@ -93,6 +93,7 @@ struct Demi {
 #[derive(Debug)]
 struct UnblownDemi {
    world: world::World,
+   prev_size: grid::PrevState,
 }
 
 
@@ -206,11 +207,16 @@ impl Demi {
          }
 
          Message::WorldNew => {
-            let future = async {
+
+            // Keep the same size
+            let prev_size = self.grid_mut().prev_state();
+
+            let future = async move {
                let project = project::Project::new("./demi.toml");
                let world = world::World::new(project);
                Arc::new(UnblownDemi {
                   world,
+                  prev_size,
                })
             };
 
@@ -220,8 +226,9 @@ impl Demi {
          Message::WorldNewed(unblown) => {
             let unblown = Arc::try_unwrap(unblown).expect("WorldNewed() Failed to unwrap Arc");
             *self = Self::init(unblown.world);
+            self.grid_mut().restore_state(unblown.prev_size);
 
-            Task::done(Message::ResizeEvent((Id::unique(), iced::Size::new(10240.0, 768.0))))
+            Task::none()
          }
 
          Message::CloseEvent(_id) => {
@@ -300,6 +307,7 @@ impl Demi {
          _ => panic!("grid_mut() Pane is not a grid"),
       }
    }
+
 
    fn filter_mut(&mut self) -> &mut filter_control::Controls {
       let pane = self.filter_pane.expect("filter_mut() Attempt to get_mut non-existent filter_pane");

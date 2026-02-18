@@ -9,7 +9,7 @@ Copyright (c) 2013-2023 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use std::{fs::File, path::PathBuf, sync::{Arc, atomic::{AtomicU8, AtomicUsize, Ordering}, }, };
-use std::time::{Duration, };
+use std::time::{Duration, /* Instant,  */};
 use std::io::{BufReader, BufWriter,};
 use std::sync::Mutex;
 
@@ -335,6 +335,7 @@ impl World {
       })
    }
 
+
    // Pause/resume evolutuon thread
    pub fn toggle_run(&self) {
       // Receive signal from thread
@@ -348,6 +349,7 @@ impl World {
       self.mode.store(state as u8, Ordering::Release);
    }
 
+
    // Finish thread
    pub fn shutdown(&mut self) {
       let state = ThreadMode::Shutdown;
@@ -358,21 +360,25 @@ impl World {
       }
    }
 
+
    // Returns model time - a number ticks elapsed from beginning
    pub fn ticks_elapsed(&self) -> usize {
       self.ticks_elapsed.load(Ordering::Relaxed)
    }
 
+
    pub fn size(&self) -> Size {
       self.env.world_size
    }
+
 
    pub fn date(&self) -> (usize, usize) {
       let now = self.ticks_elapsed();
       Environment::date(now)
    }
 
-   /* fn await_for_complete(&self, wait_for: ThreadMode) -> Result<(), String> {
+
+   /* pub fn await_for_complete(&self, wait_for: ThreadMode) -> Result<(), String> {
       let timeout = Duration::from_secs(5);
       let sleep_time = Duration::from_millis(100);
       let now = Instant::now();
@@ -403,5 +409,12 @@ impl World {
    pub fn busy(&self) -> bool {
       let state: ThreadMode = self.mode.load(Ordering::Acquire).into();
       state == ThreadMode::Save
+   }
+}
+
+
+impl Drop for World {
+   fn drop(&mut self) {
+      self.shutdown();
    }
 }

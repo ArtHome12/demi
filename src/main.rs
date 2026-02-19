@@ -24,14 +24,16 @@ mod genes;
 mod organism;
 
 use grid::Grid;
-use iced::{Element, Subscription, Task, window, window::Id, Theme, mouse};
+use iced::{Element, Subscription, Task, Window, window, window::Id, Theme, mouse};
 use iced::widget::{column, PaneGrid, pane_grid, pane_grid::Axis, mouse_area,};
 use iced::window::icon;
 
-use std::path::Path;
+use std::io;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{rc::Rc, cell::RefCell, };
+
 
 
 // #[tokio::main]
@@ -64,17 +66,19 @@ enum Message {
 
    Refresh(Instant), // called about 30 times per second for screen refresh
 
+   ResizeEvent((Id, iced::Size)), // Message from main window
    Resized(pane_grid::ResizeEvent), // Message from panes
-   ResizeEvent((Id, iced::Size)),   // Message from main window
 
    // Commands to execute
    ShowFilter(bool),
    Illuminate(bool),
    ToggleRun,
-   WorldSave,
-   WorldNew,
-   WorldNewed(Arc<UnblownDemi>), // after new world created
    CloseEvent(Id),
+   SaveWorld,
+   NewWorld,
+   SelectFile, // Open file dialog
+   OpenFile(Option<PathBuf>),
+   FileOpened(Arc<UnblownDemi>), // after new world created
 }
 
 
@@ -100,7 +104,8 @@ struct UnblownDemi {
 impl Demi {
    fn new() -> (Self, Task<Message>) {
       // Project contains info for create model
-      let project = project::Project::new("./demi.toml");
+      let filename = PathBuf::from("./demi.toml");
+      let project = project::Project::new(&filename);
 
       // World contains model and manage its evaluation
       let world = world::World::new(project.clone());
@@ -126,8 +131,9 @@ impl Demi {
                project_controls::Message::ToggleRun => Task::done(Message::ToggleRun),
                project_controls::Message::ToggleIllumination => Task::done(Message::Illuminate(self.controls.illuminate)),
                project_controls::Message::ToggleFilter => Task::done(Message::ShowFilter(self.controls.show_filter)),
-               project_controls::Message::Save => Task::done(Message::WorldSave),
-               project_controls::Message::New => Task::done(Message::WorldNew),
+               project_controls::Message::Save => Task::done(Message::SaveWorld),
+               project_controls::Message::New => Task::done(Message::NewWorld),
+               project_controls::Message::Load => Task::done(Message::SelectFile),
                _ => Task::none(),
             }
          }
@@ -155,6 +161,11 @@ impl Demi {
 
             let grid_cmd = grid::Message::ClockChime(one_second_passed);
             let cmd = Message::GridMessage(grid_cmd);
+            Task::done(cmd)
+         }
+
+         Message::ResizeEvent((_id, size)) => {
+            let cmd = Message::GridMessage(grid::Message::Resized(size));
             Task::done(cmd)
          }
 
@@ -201,18 +212,42 @@ impl Demi {
             Task::none()
          }
 
-         Message::WorldSave => {
+         Message::CloseEvent(_id) => {
+            self.world.borrow_mut().shutdown();
+            return iced::exit()
+         }
+
+         Message::SaveWorld => {
             self.world.borrow().save();
             Task::none()
          }
 
-         Message::WorldNew => {
+         Message::NewWorld => {
+
+            let template = PathBuf::from("./demi.toml");
+            let cmd = Message::OpenFile(Some(template));
+            Task::done(cmd)
+         }
+
+         Message::SelectFile => {
+            window::oldest()
+               .and_then(|id| window::run(id, open_file_dialog))
+               .then(Task::future)
+               .map(Message::OpenFile)
+         }
+
+         Message::OpenFile(pathbuf) => {
+
+            let Some(pathbuf) = pathbuf else {
+               // File dialog was closed without picking a file
+               return Task::none();
+            };
 
             // Keep the same size
             let prev_size = self.grid_mut().prev_state();
 
             let future = async move {
-               let project = project::Project::new("./demi.toml");
+               let project = project::Project::new(&pathbuf);
                let world = world::World::new(project);
                Arc::new(UnblownDemi {
                   world,
@@ -220,25 +255,14 @@ impl Demi {
                })
             };
 
-            Task::perform(future, |unblown| Message::WorldNewed(unblown))
+            Task::perform(future, Message::FileOpened)
          }
 
-         Message::WorldNewed(unblown) => {
-            let unblown = Arc::try_unwrap(unblown).expect("WorldNewed() Failed to unwrap Arc");
+         Message::FileOpened(unblown) => {
+            let unblown = Arc::try_unwrap(unblown).expect("FileOpened() Failed to unwrap Arc");
             *self = Self::init(unblown.world);
             self.grid_mut().restore_state(unblown.prev_size);
-
             Task::none()
-         }
-
-         Message::CloseEvent(_id) => {
-            self.world.borrow_mut().shutdown();
-            return iced::exit()
-         }
-
-         Message::ResizeEvent((_id, size)) => {
-            let cmd = Message::GridMessage(grid::Message::Resized(size));
-            Task::done(cmd)
          }
       }
    }
@@ -340,6 +364,28 @@ impl PaneState {
          PaneContent::Grid(grid) => grid.view().map(move |message| Message::GridMessage(message)),
          PaneContent::Filter(filter) => filter.view().map(move |message| Message::FilterMessage(message)),
       }
+   }
+}
+
+#[derive(Debug, Clone)]
+pub enum Error {
+    DialogClosed,
+    IoError(io::ErrorKind),
+}
+
+
+fn open_file_dialog(
+   window: &dyn Window,
+) -> impl std::future::Future<Output = Option<PathBuf>> {
+   let dialog = rfd::AsyncFileDialog::new()
+      .set_title("Open a project...")
+      .add_filter("demi projects", &["toml"])
+      .add_filter("all files", &["*"])
+      .set_parent(&window);
+
+   async move {
+      let picked_file = dialog.pick_file().await;
+      picked_file.map(|file| file.into())
    }
 }
 

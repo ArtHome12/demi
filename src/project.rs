@@ -9,6 +9,7 @@ Copyright (c) 2013-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use std::{fs, collections::HashMap, };
+use std::path::PathBuf;
 use serde::Deserialize;
 
 use crate::geom::*;
@@ -30,7 +31,7 @@ struct Toml {
 }
 
 impl Toml {
-   pub fn new(filename: &str) -> Self {
+   pub fn new(filename: &PathBuf) -> Self {
       let data = fs::read_to_string(filename).expect("Unable to read project file");
       toml::from_str(&data).unwrap()
    }
@@ -90,7 +91,7 @@ pub struct Element {
 }
 
 impl Project {
-   pub fn new(filename: &str) -> Self {
+   pub fn new(filename: &PathBuf) -> Self {
 
       // Reads reactions reagents
       fn do_reagents(elements: &Vec<Element>, part: &Vec<ReactionReagent>) -> Vec<Reagent> {

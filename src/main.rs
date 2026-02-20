@@ -28,7 +28,6 @@ use iced::{Element, Subscription, Task, Window, window, window::Id, Theme, mouse
 use iced::widget::{column, PaneGrid, pane_grid, pane_grid::Axis, mouse_area,};
 use iced::window::icon;
 
-use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -105,10 +104,10 @@ impl Demi {
    fn new() -> (Self, Task<Message>) {
       // Project contains info for create model
       let filename = PathBuf::from("./demi.toml");
-      let project = project::Project::new(&filename);
+      let project = project::Project::new(filename);
 
       // World contains model and manage its evaluation
-      let world = world::World::new(project.clone());
+      let world = world::World::new(project);
       let res = Self::init(world);
       (res, Task::done(Message::StartupAction))
    }
@@ -247,7 +246,7 @@ impl Demi {
             let prev_size = self.grid_mut().prev_state();
 
             let future = async move {
-               let project = project::Project::new(&pathbuf);
+               let project = project::Project::new(pathbuf);
                let world = world::World::new(project);
                Arc::new(UnblownDemi {
                   world,
@@ -365,12 +364,6 @@ impl PaneState {
          PaneContent::Filter(filter) => filter.view().map(move |message| Message::FilterMessage(message)),
       }
    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Error {
-    DialogClosed,
-    IoError(io::ErrorKind),
 }
 
 

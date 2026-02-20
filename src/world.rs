@@ -11,7 +11,6 @@ Copyright (c) 2013-2023 by Artem Khomenko _mag12@yahoo.com.
 use std::{fs::File, path::PathBuf, sync::{Arc, atomic::{AtomicU8, AtomicUsize, Ordering}, }, };
 use std::time::{Duration, /* Instant,  */};
 use std::io::{BufReader, BufWriter,};
-use std::sync::Mutex;
 
 use crate::{dot::ElementsSheet, evolution::Evolution, environment::*};
 pub use crate::dot::{Dot, ElementsSheets, PtrElements};
@@ -31,7 +30,6 @@ pub struct World {
    ptr_elements: PtrElements,       // Contents of inanimate nature calculations
    ptr_animals: PtrAnimals,         // Contents of living nature calculations
    thread_handle: Option<Handle>,
-   filename: Arc<Mutex<PathBuf>>,   // Filename for save/load project
 
    // Section for UI
    pub vis_elem_indexes: Vec<bool>, // indexes of visible (non-filtered) elements
@@ -73,11 +71,6 @@ impl World {
       let ui_reactions = project.ui_reactions;
       let size = project.size;
 
-      // Create sheets of elements with initial amounts
-      let elements = ui_elements.iter().map(|v| {
-         ElementsSheet::new(size, v.init_amount, v.volatility)
-      }).collect::<ElementsSheets>();
-
       let env = Environment::new(size,
          project.resolution,
          project.luca_reaction,
@@ -85,17 +78,35 @@ impl World {
          project.heterotroph_color,
       );
 
-      // Create animals
-      let animals = AnimalsSheet::new(size.max_serial(), project.max_animal_stack);
+      // Prepare filename for binary file
+      let filename = project.filename.with_extension("demi");
+
+      // Read or create
+      let (elements, animals) = match Self::load_compressed_data(&filename) {
+         Ok((elements, animals)) => (elements, animals),
+         Err(e) => {
+
+            // Display an error message if the file exists but the load fails.
+            if !matches!(e, FileError::NotFound) {
+               eprintln!("Could not load project from {}: {:?}. Starting with initial state.", filename.display(), e);
+            }
+
+            // Create sheets of elements with initial amounts
+            let elements = ui_elements.iter().map(|v| {
+               ElementsSheet::new(size, v.init_amount, v.volatility)
+            }).collect::<ElementsSheets>();
+
+            // Create animals
+            let animals = AnimalsSheet::new(size.max_serial(), project.max_animal_stack);
+            (elements, animals)
+         }
+      };
 
       // Flags for thread control
       let mode = Arc::new(AtomicU8::new(ThreadMode::Paused as u8));
 
       // The model time
       let ticks_elapsed = Arc::new(AtomicUsize::new(0));
-
-      // File name for save/load
-      let filename = Arc::new(Mutex::new(PathBuf::from("./demi_save.dat")));
 
       // Thread for calculate evolution
 
@@ -111,7 +122,7 @@ impl World {
          evolution,
          mode.clone(),
          ticks_elapsed.clone(),
-         filename.clone(),
+         filename,
       );
 
       // At start all elements should be visible, collect its indexes
@@ -126,7 +137,6 @@ impl World {
          ptr_elements,
          ptr_animals,
          thread_handle,
-         filename,
 
          vis_elem_indexes,
          vis_reac_indexes,
@@ -137,7 +147,7 @@ impl World {
       }
    }
 
-   fn spawn(env: Environment, mut evolution: Evolution, mode: Arc<AtomicU8>, ticks: Arc<AtomicUsize>, filename: Arc<Mutex<PathBuf>>) -> Option<Handle> {
+   fn spawn(env: Environment, mut evolution: Evolution, mode: Arc<AtomicU8>, ticks: Arc<AtomicUsize>, filename: PathBuf) -> Option<Handle> {
       // Thread for calculate evolution
       let thread_handle = std::thread::spawn(move || {
          let sleep_time = Duration::from_millis(100);
@@ -171,9 +181,8 @@ impl World {
                ThreadMode::Save => {
                   // Save project
                   {
-                     let filename = filename.lock().unwrap();
                      if let Err(e) = Self::save_compressed_data(&filename, &evolution) {
-                        eprintln!("Error saving project to {}: {}", filename.display(), e);
+                        eprintln!("Error saving project to {}: {:?}", filename.display(), e);
                      }
                   }
 
@@ -188,25 +197,50 @@ impl World {
    }
 
 
-   fn save_compressed_data(path: &std::path::Path, data: &Evolution) -> anyhow::Result<()> {
+   fn save_compressed_data(path: &std::path::Path, data: &Evolution) -> anyhow::Result<(), FileError> {
 
       // 1. Create a file
-      let file = File::create(path)?;
+      let file = File::create(path).map_err(FileError::Io)?;
       
       // 2. Wrap it in a BufWriter to speed up disk access
       let buf_writer = BufWriter::new(file);
       
       // 3. Add a Zstd compression layer (compression levels from 1 to 21, 3 is standard)
-      let mut encoder = zstd::Encoder::new(buf_writer, 3)?;
+      let mut encoder = zstd::Encoder::new(buf_writer, 3).map_err(FileError::Io)?;
       
       // 4. Bincode writes directly to the encoder
       // The serialize_into method is more efficient than serialize, as it doesn't create an intermediate Vec<u8>
       let version = 1u8;
-      bincode::serialize_into(&mut encoder, &version)?;
-      bincode::serialize_into(&mut encoder, &data.elements)?;
-      bincode::serialize_into(&mut encoder, &data.animals)?;
-      encoder.finish()?;
+      bincode::serialize_into(&mut encoder, &version).map_err(FileError::Bincode)?;
+      bincode::serialize_into(&mut encoder, &data.elements).map_err(FileError::Bincode)?;
+      bincode::serialize_into(&mut encoder, &data.animals).map_err(FileError::Bincode)?;
+      encoder.finish().map_err(FileError::Io)?;
       Ok(())
+   }
+
+
+   fn load_compressed_data(path: &std::path::Path) -> anyhow::Result<(ElementsSheets, AnimalsSheet), FileError> {
+
+      // Check if file exists
+      if !path.exists() {
+         return Err(FileError::NotFound);
+      }
+
+      let file = File::open(path).map_err(FileError::Io)?;
+      
+      let buf_reader = BufReader::new(file);
+      
+      let mut decoder = zstd::Decoder::new(buf_reader).map_err(FileError::Io)?;
+      
+      let version: u8 = bincode::deserialize_from(&mut decoder).map_err(FileError::Bincode)?;
+      if version != 1 {
+         return Err(FileError::Version(version));
+      }
+
+      let elements = bincode::deserialize_from(&mut decoder).map_err(FileError::Bincode)?;
+      let animals = bincode::deserialize_from(&mut decoder).map_err(FileError::Bincode)?;
+
+      Ok((elements, animals))
    }
 
 
@@ -395,12 +429,6 @@ impl World {
 
 
    pub fn save(&self) {
-      // Send filename to save
-      {
-         let mut filename = self.filename.lock().unwrap();
-         *filename = PathBuf::from("./demi_save.demi");
-      }
-
       // Send signal to thread to save
       let state = ThreadMode::Save;
       self.mode.store(state as u8, Ordering::Release);
@@ -417,4 +445,14 @@ impl Drop for World {
    fn drop(&mut self) {
       self.shutdown();
    }
+}
+
+
+#[allow(dead_code)]
+#[derive(Debug)]
+enum FileError {
+   NotFound,
+   Io(std::io::Error),
+   Bincode(Box<bincode::ErrorKind>),
+   Version(u8),
 }

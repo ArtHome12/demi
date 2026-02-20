@@ -80,6 +80,7 @@ pub struct Project {
    pub reactions: Reactions,
    pub ui_reactions: UIReactions,
    pub luca_reaction: usize, // first organism
+   pub filename: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -91,7 +92,7 @@ pub struct Element {
 }
 
 impl Project {
-   pub fn new(filename: &PathBuf) -> Self {
+   pub fn new(filename: PathBuf) -> Self {
 
       // Reads reactions reagents
       fn do_reagents(elements: &Vec<Element>, part: &Vec<ReactionReagent>) -> Vec<Reagent> {
@@ -110,7 +111,7 @@ impl Project {
       }
 
       // Read general data from toml file
-      let toml = Toml::new(filename);
+      let toml = Toml::new(&filename);
       let width = toml.width;
       let size = Size::new(width, (width as f32 * toml.height_ratio) as usize);
 
@@ -165,6 +166,7 @@ impl Project {
          reactions,
          ui_reactions,
          luca_reaction,
+         filename,
          // vis_elem_indexes,
          // vis_reac_indexes,
          // vis_dead: true,

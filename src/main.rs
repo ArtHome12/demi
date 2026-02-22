@@ -245,6 +245,9 @@ impl Demi {
             // Keep the same size
             let prev_size = self.grid_mut().prev_state();
 
+            // Indicate loading
+            self.world.borrow_mut().set_loading();
+
             let future = async move {
                let project = project::Project::new(pathbuf);
                let world = world::World::new(project);

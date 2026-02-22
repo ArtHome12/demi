@@ -48,6 +48,7 @@ enum ThreadMode {
    Paused = 3, // signal from thread about pause
    Shutdown = 4, // command from main to break loop
    Save = 5, // command from main to save project
+   Load = 6, // command from main to indicate about load project
 }
 
 impl From<u8> for ThreadMode {
@@ -58,6 +59,7 @@ impl From<u8> for ThreadMode {
          3 => ThreadMode::Paused,
          4 => ThreadMode::Shutdown,
          5 => ThreadMode::Save,
+         6 => ThreadMode::Load,
          _ => panic!("world::ThreadMode({})", n),
       }
    }
@@ -173,7 +175,7 @@ impl World {
                   prev_state = ThreadMode::Paused;
                   mode.store(ThreadMode::Paused as u8, Ordering::Relaxed);
                }
-               ThreadMode::Paused => std::thread::sleep(sleep_time),
+               ThreadMode::Paused | ThreadMode::Load => std::thread::sleep(sleep_time),
                ThreadMode::Shutdown => {
                   mode.store(ThreadMode::Paused as u8, Ordering::Relaxed);
                   break;
@@ -418,7 +420,7 @@ impl World {
       let now = Instant::now();
 
       while now.elapsed() < timeout {
-         let state: ThreadMode = self.mode.load(Ordering::Acquire).into();
+         let state: ThreadMode = self.mode.load(Ordering::Relaxed).into();
          if state == wait_for {
             return Ok(());
          }
@@ -434,9 +436,16 @@ impl World {
       self.mode.store(state as u8, Ordering::Release);
    }
 
+
    pub fn busy(&self) -> bool {
-      let state: ThreadMode = self.mode.load(Ordering::Acquire).into();
-      state == ThreadMode::Save
+      let state: ThreadMode = self.mode.load(Ordering::Relaxed).into();
+      state == ThreadMode::Save || state == ThreadMode::Load
+   }
+
+
+   // Indicate loading
+   pub fn set_loading(&mut self) {
+      self.mode.store(ThreadMode::Load as u8, Ordering::Release);
    }
 }
 

@@ -27,6 +27,7 @@ use grid::Grid;
 use iced::{Element, Subscription, Task, Window, window, window::Id, Theme, mouse};
 use iced::widget::{column, PaneGrid, pane_grid, pane_grid::Axis, mouse_area,};
 use iced::window::icon;
+use iced::time::{self, hours};
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -42,12 +43,12 @@ pub fn main() -> iced::Result {
    let icon = icon::from_file(icon_path).ok();
    let settings = iced::window::Settings {
       icon,
+      exit_on_close_request: false,
       ..iced::window::Settings::default()
    };
 
    iced::application(Demi::new, Demi::update, Demi::view)
       .subscription(Demi::subscription)
-      .exit_on_close_request(false)
       .antialiasing(true)
       .theme(Theme::Nightfly)
       .window(settings)
@@ -64,6 +65,7 @@ enum Message {
    FilterMessage(filter_control::Message), // Messages from filter pane at right
 
    Refresh(Instant), // called about 30 times per second for screen refresh
+   HourPassed, // for autosave
 
    ResizeEvent((Id, iced::Size)), // Message from main window
    Resized(pane_grid::ResizeEvent), // Message from panes
@@ -212,8 +214,19 @@ impl Demi {
          }
 
          Message::CloseEvent(_id) => {
-            self.world.borrow_mut().shutdown();
-            return iced::exit()
+            let mut world = self.world.borrow_mut();
+
+            // Autosave if necessary before closing
+            if self.controls.autosave {
+               world.save();
+               world.await_for_save_complete();
+            }
+
+            // Stop the evaluation thread
+            world.shutdown();
+
+            // Exit application
+            iced::exit()
          }
 
          Message::SaveWorld => {
@@ -222,7 +235,6 @@ impl Demi {
          }
 
          Message::NewWorld => {
-
             let template = PathBuf::from("./demi.toml");
             let cmd = Message::OpenFile(Some(template));
             Task::done(cmd)
@@ -266,6 +278,14 @@ impl Demi {
             self.grid_mut().restore_state(unblown.prev_size);
             Task::none()
          }
+
+         Message::HourPassed => {
+            if self.controls.autosave {
+               Task::done(Message::SaveWorld)
+            } else {
+               Task::none()
+            }
+         }
       }
    }
 
@@ -295,6 +315,7 @@ impl Demi {
       let subs = vec![window::frames().map(Message::Refresh),
          window::close_requests().map(Message::CloseEvent),
          window::resize_events().map(|(id, size)| Message::ResizeEvent((id, size))),
+         time::every(hours(1)).map(|_| Message::HourPassed),
       ];
       Subscription::batch(subs)
    }

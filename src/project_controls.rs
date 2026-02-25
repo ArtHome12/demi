@@ -15,7 +15,7 @@ use crate::resources::*;
 
 pub struct Controls {
    run: bool, // run or pause calculation
-   autosave: bool, // autosave project on exit
+   pub autosave: bool, // autosave project on exit
    autorun: bool, // autostart evaluations on load
    pub illuminate: bool, // toggle illuminations only from the sun or total
    pub show_filter: bool, // panel at the left side with elements filter

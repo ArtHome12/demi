@@ -9,7 +9,7 @@ Copyright (c) 2013-2023 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
 use std::{fs::File, path::PathBuf, sync::{Arc, atomic::{AtomicU8, AtomicUsize, Ordering}, }, };
-use std::time::{Duration, /* Instant,  */};
+use std::time::{Duration, Instant,};
 use std::io::{BufReader, BufWriter,};
 
 use crate::{dot::ElementsSheet, evolution::Evolution, environment::*};
@@ -160,7 +160,7 @@ impl World {
          // Running until program not closed
          loop {
             // Get task
-            let task = mode.load(Ordering::Relaxed).into();
+            let task = mode.load(Ordering::Acquire).into();
             match task {
                ThreadMode::Run => {
                   prev_state = ThreadMode::Run;
@@ -193,6 +193,9 @@ impl World {
                }
             }
          }
+   
+         // Let's dangle the data so that it remains available to the main thread to avoid undefined behavior
+         std::mem::forget(evolution);
       });
 
       Some(thread_handle)
@@ -414,20 +417,25 @@ impl World {
    }
 
 
-   /* pub fn await_for_complete(&self, wait_for: ThreadMode) -> Result<(), String> {
+   fn await_for_complete(&self, wait_while: ThreadMode) -> Result<(), String> {
       let timeout = Duration::from_secs(5);
       let sleep_time = Duration::from_millis(100);
       let now = Instant::now();
 
       while now.elapsed() < timeout {
-         let state: ThreadMode = self.mode.load(Ordering::Relaxed).into();
-         if state == wait_for {
+         let state: ThreadMode = self.mode.load(Ordering::Acquire).into();
+         if state != wait_while {
             return Ok(());
          }
          std::thread::sleep(sleep_time);
       }
       Err("Timeout waiting for thread to reach state".into())
-   } */
+   }
+
+
+   pub fn await_for_save_complete(&self) {
+      self.await_for_complete(ThreadMode::Save).expect("world::await_for_save_complete timeout");
+   }
 
 
    pub fn save(&self) {

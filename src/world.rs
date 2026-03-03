@@ -84,8 +84,8 @@ impl World {
       let filename = project.filename.with_extension("demi");
 
       // Read or create
-      let (elements, animals) = match Self::load_compressed_data(&filename) {
-         Ok((elements, animals)) => (elements, animals),
+      let (elements, animals, tick) = match Self::load_compressed_data(&filename) {
+         Ok((elements, animals, tick)) => (elements, animals, tick),
          Err(e) => {
 
             // Display an error message if the file exists but the load fails.
@@ -100,7 +100,7 @@ impl World {
 
             // Create animals
             let animals = AnimalsSheet::new(size.max_serial(), project.max_animal_stack);
-            (elements, animals)
+            (elements, animals, 0)
          }
       };
 
@@ -108,7 +108,7 @@ impl World {
       let mode = Arc::new(AtomicU8::new(ThreadMode::Paused as u8));
 
       // The model time
-      let ticks_elapsed = Arc::new(AtomicUsize::new(0));
+      let ticks_elapsed = Arc::new(AtomicUsize::new(tick));
 
       // Thread for calculate evolution
 
@@ -183,7 +183,8 @@ impl World {
                ThreadMode::Save => {
                   // Save project
                   {
-                     if let Err(e) = Self::save_compressed_data(&filename, &evolution) {
+                     let tick = ticks.fetch_add(1, Ordering::Relaxed);
+                     if let Err(e) = Self::save_compressed_data(&filename, &evolution, tick) {
                         eprintln!("Error saving project to {}: {:?}", filename.display(), e);
                      }
                   }
@@ -202,7 +203,7 @@ impl World {
    }
 
 
-   fn save_compressed_data(path: &std::path::Path, data: &Evolution) -> anyhow::Result<(), FileError> {
+   fn save_compressed_data(path: &std::path::Path, data: &Evolution, tick: usize) -> anyhow::Result<(), FileError> {
 
       // 1. Create a file
       let file = File::create(path).map_err(FileError::Io)?;
@@ -215,8 +216,9 @@ impl World {
       
       // 4. Bincode writes directly to the encoder
       // The serialize_into method is more efficient than serialize, as it doesn't create an intermediate Vec<u8>
-      let version = 1u8;
+      let version = 2u8;
       bincode::serialize_into(&mut encoder, &version).map_err(FileError::Bincode)?;
+      bincode::serialize_into(&mut encoder, &tick).map_err(FileError::Bincode)?;
       bincode::serialize_into(&mut encoder, &data.elements).map_err(FileError::Bincode)?;
       bincode::serialize_into(&mut encoder, &data.animals).map_err(FileError::Bincode)?;
       encoder.finish().map_err(FileError::Io)?;
@@ -224,7 +226,7 @@ impl World {
    }
 
 
-   fn load_compressed_data(path: &std::path::Path) -> anyhow::Result<(ElementsSheets, AnimalsSheet), FileError> {
+   fn load_compressed_data(path: &std::path::Path) -> anyhow::Result<(ElementsSheets, AnimalsSheet, usize), FileError> {
 
       // Check if file exists
       if !path.exists() {
@@ -238,14 +240,19 @@ impl World {
       let mut decoder = zstd::Decoder::new(buf_reader).map_err(FileError::Io)?;
       
       let version: u8 = bincode::deserialize_from(&mut decoder).map_err(FileError::Bincode)?;
-      if version != 1 {
-         return Err(FileError::Version(version));
-      }
+      let tick: usize = match version {
+         1 => { 0usize } // In version 1, the tick was not saved, so we start from 0
+         2 => {
+            // Read model time
+            bincode::deserialize_from(&mut decoder).map_err(FileError::Bincode)?
+         }
+         _ => return Err(FileError::Version(version)),
+      };
 
       let elements = bincode::deserialize_from(&mut decoder).map_err(FileError::Bincode)?;
       let animals = bincode::deserialize_from(&mut decoder).map_err(FileError::Bincode)?;
 
-      Ok((elements, animals))
+      Ok((elements, animals, tick))
    }
 
 

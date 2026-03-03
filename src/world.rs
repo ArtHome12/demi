@@ -66,7 +66,7 @@ impl From<u8> for ThreadMode {
 }
 
 impl World {
-   pub fn new(project: Project) -> Self {
+   pub fn new(project: Project, load_bin: bool) -> Self {
       // Initialize structures from project
       let ui_elements = project.elements;
       let reactions = project.reactions;
@@ -84,15 +84,9 @@ impl World {
       let filename = project.filename.with_extension("demi");
 
       // Read or create
-      let (elements, animals, tick) = match Self::load_compressed_data(&filename) {
-         Ok((elements, animals, tick)) => (elements, animals, tick),
-         Err(e) => {
-
-            // Display an error message if the file exists but the load fails.
-            if !matches!(e, FileError::NotFound) {
-               eprintln!("Could not load project from {}: {:?}. Starting with initial state.", filename.display(), e);
-            }
-
+      let (elements, animals, tick) = {
+         // Helper function to create initial state to avoid duplication
+         let create_initial_state = || {
             // Create sheets of elements with initial amounts
             let elements = ui_elements.iter().map(|v| {
                ElementsSheet::new(size, v.init_amount, v.volatility)
@@ -101,6 +95,22 @@ impl World {
             // Create animals
             let animals = AnimalsSheet::new(size.max_serial(), project.max_animal_stack);
             (elements, animals, 0)
+         };
+
+         if load_bin {
+            match Self::load_compressed_data(&filename) {
+               Ok((elements, animals, tick)) => (elements, animals, tick),
+               Err(e) => {
+                  // Display an error message if the file exists but the load fails.
+                  if !matches!(e, FileError::NotFound) {
+                     eprintln!("Could not load project from {}: {:?}. Starting with initial state.", filename.display(), e);
+                  }
+                  create_initial_state()
+               }
+            }
+         } else {
+            // Если load_bin false, сразу создаем начальное состояние без попытки загрузки
+            create_initial_state()
          }
       };
 

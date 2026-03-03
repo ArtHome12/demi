@@ -78,7 +78,7 @@ enum Message {
    SaveWorld,
    NewWorld,
    SelectFile, // Open file dialog
-   OpenFile(Option<PathBuf>),
+   OpenFile(Option<PathBuf>, bool), // load bin oк no
    FileOpened(Arc<UnblownDemi>), // after new world created
 }
 
@@ -109,7 +109,7 @@ impl Demi {
       let project = project::Project::new(filename);
 
       // World contains model and manage its evaluation
-      let world = world::World::new(project);
+      let world = world::World::new(project, true);
       let res = Self::init(world);
       (res, Task::done(Message::StartupAction))
    }
@@ -236,7 +236,7 @@ impl Demi {
 
          Message::NewWorld => {
             let template = PathBuf::from("./demi.toml");
-            let cmd = Message::OpenFile(Some(template));
+            let cmd = Message::OpenFile(Some(template), false); // without bin load
             Task::done(cmd)
          }
 
@@ -244,10 +244,10 @@ impl Demi {
             window::oldest()
                .and_then(|id| window::run(id, open_file_dialog))
                .then(Task::future)
-               .map(Message::OpenFile)
+               .map(|pathbuf| Message::OpenFile(pathbuf, true))
          }
 
-         Message::OpenFile(pathbuf) => {
+         Message::OpenFile(pathbuf, load_bin) => {
 
             let Some(pathbuf) = pathbuf else {
                // File dialog was closed without picking a file
@@ -262,7 +262,7 @@ impl Demi {
 
             let future = async move {
                let project = project::Project::new(pathbuf);
-               let world = world::World::new(project);
+               let world = world::World::new(project, load_bin);
                Arc::new(UnblownDemi {
                   world,
                   prev_size,

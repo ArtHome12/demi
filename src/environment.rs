@@ -39,7 +39,8 @@ pub struct Environment {
 impl Environment {
    // Number of ticks per day and days per year
    const TICKS_PER_DAY: f32 = 60.0*24.0;
-   const DAYS_PER_YEAR: f32 = Self::TICKS_PER_DAY * 365.0;
+   const DAYS_PER_YEAR: f32 = 365.0;
+   const TICKS_PER_YEAR: f32 = Self::TICKS_PER_DAY * Self::DAYS_PER_YEAR;
    const HALF_YEAR: f32 = Self::DAYS_PER_YEAR / 2.0 + 0.5;
 
    pub fn new(world_size: Size, resolution: f32, luca_reaction: usize, number_of_reactions: usize, heterotroph_color: iced::Color) -> Self {
@@ -79,7 +80,7 @@ impl Environment {
       let x = w as f32 * (1.0 - day_tick / (Self::TICKS_PER_DAY - 1.0) + 0.5);
 
       // When the first half of the year goes, it is necessary to take a share from the equator, and when the second is to add
-      let day = tick as f32 % Self::DAYS_PER_YEAR;
+      let day = tick as f32 % Self::TICKS_PER_YEAR;
       let y = if day < Self::HALF_YEAR {
 		   (h as f32 - self.tropic_height) / 2.0 + day * self.tropic_height / Self::HALF_YEAR
       } else {

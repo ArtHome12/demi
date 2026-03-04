@@ -70,17 +70,14 @@ impl Gene for Digestion {
       // Determine whether there will be a mutation
       let dice = self.variability.sample(rng);
 
-      // Change the reaction
-      if dice < self.number_of_reactions && dice != self.reaction{
+      // Change the reaction or the mode with equal probability
+      if dice == self.reaction {
+         res.mode = match self.mode {
+            NutritionMode::Autotroph => NutritionMode::Heterotroph,
+            NutritionMode::Heterotroph => NutritionMode::Autotroph,
+         }
+      } else if dice < self.number_of_reactions {
          res.reaction = dice;
-      } else {
-         // Change the mode
-         if dice == self.number_of_reactions - 1 {
-            res.mode = match self.mode {
-               NutritionMode::Autotroph => NutritionMode::Heterotroph,
-               NutritionMode::Heterotroph => NutritionMode::Autotroph,
-            }
-         };
       }
 
       res

@@ -79,7 +79,7 @@ heterotroph_color = "red" # color of heterotrophs
    name="CO2+4H2=CH4+2H2O"
    vitality=12
    color="violet"
-   left = [ { element = "Energy", amount = 1 },
+   left = [ { element = "Energy", amount = 10 },
             { element = "CarbonDioxide", amount = 1 },
             { element = "Hydrogen", amount = 4} ]
    right = [ { element = "Methane", amount = 1 },

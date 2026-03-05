@@ -41,7 +41,7 @@ impl Environment {
    const TICKS_PER_DAY: f32 = 60.0*24.0;
    const DAYS_PER_YEAR: f32 = 365.0;
    const TICKS_PER_YEAR: f32 = Self::TICKS_PER_DAY * Self::DAYS_PER_YEAR;
-   const HALF_YEAR: f32 = Self::DAYS_PER_YEAR / 2.0 + 0.5;
+   const HALF_YEAR: f32 = Self::TICKS_PER_YEAR / 2.0 + 0.5;
 
    pub fn new(world_size: Size, resolution: f32, luca_reaction: usize, number_of_reactions: usize, heterotroph_color: iced::Color) -> Self {
       let world_height = world_size.y;

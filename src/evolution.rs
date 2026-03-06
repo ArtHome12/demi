@@ -265,7 +265,7 @@ impl Evolution {
                None => None,
                Some(i) => {
                   // Distance from the anchor
-                  let d = ((i * i + j * j) as f64).sqrt();
+                  let d = ((i * i + j * j) as f64).sqrt() + 1.0; // +1 to avoid artefacts with remaining brightness at the border of the radius
 
                   // Brightness is inversely proportional to distance
                   let b = if d < self.radius as f64 {

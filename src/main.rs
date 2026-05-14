@@ -22,6 +22,7 @@ mod filter_control;
 mod reactions;
 mod genes;
 mod organism;
+mod state;
 
 use grid::Grid;
 use iced::{Element, Subscription, Task, Window, window, window::Id, Theme, mouse};

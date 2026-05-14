@@ -59,7 +59,38 @@ impl Evolution {
       // At least LUCA should always to be first at 0,0
       self.animals.implantation(&env.luca, tick);
 
-      // Behavior
+      // NEW CODE
+      // Here, at the first stage, we must calculate the change in the state of the finite state machines.
+      let ptr_elements = PtrElements::new(&self.elements);
+      let ptr_animals = PtrAnimals::new(&self.animals);
+
+      // For every point on the ground parallel
+      self.animals.sheet
+      .par_iter_mut()
+      .enumerate()
+      .for_each(|(serial, animals)| {
+         // Each alive organism at the point
+         // animals.digestion(&ptr_elements, &ptr_animals, serial, &self.reactions)
+
+         // Получаем доступ к программе организма:
+         
+
+         // 1. Текущая строка
+         // 2. Набор строк программы, представляющих собой маску (требуемых включенных и выключенных сенсоров), действие в случае успеха и номер следующей строки при успехе или при неудаче.
+         // 3. Также должны быть определены значения сенсоров:
+         //    - либо сразу собирать всю информацию об окружении
+         //    - либо по мере необходимости запрашивать информацию у окружающего мира
+         //    - комбинированный вариант - запрашиваем и кешируем. После реализации станет ясно, есть ли выигрыш от кеша
+         // 4. Сохраняем в организме результат выполнения действия, который может быть:
+         //    - неудача, меняем номер текущей строки на номер для неудачи
+         //    - успех, требуемое действие и номер строки для успеха и для неудачи
+         // 5. Далее без распараллеливания, если успех, то пытаемся выполнить действие и потом меняем номер текущей строки на номер для успеха или неудачи
+
+      });
+
+      // Что такое сенсор - это ген?
+
+      // Behavior - old code
       self.transfer(env);
       self.escape();
       self.digestion();

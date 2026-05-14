@@ -15,6 +15,7 @@ use serde::{Serialize, Deserialize};
 use crate::genes::*;
 use crate::reactions::Reactions;
 use crate::dot::*;
+use crate::state::*;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,16 +25,18 @@ pub struct Organism {
    gene_digestion: Digestion,
    metabolism: usize,
    gene_reproduction: Reproduction,
+   fcm: FSM,
 }
 
 impl Organism {
-   pub fn new(vitality: usize, birthday: usize, gene_digestion: Digestion, gene_reproduction: Reproduction,) -> Self {
+   pub fn new(vitality: usize, birthday: usize, gene_digestion: Digestion, gene_reproduction: Reproduction, fcm: FSM) -> Self {
       Self {
          vitality,
          birthday,
          metabolism: 0,
          gene_digestion,
          gene_reproduction,
+         fcm,
       }
    }
 
@@ -99,6 +102,7 @@ impl Organism {
             metabolism: 0,
             gene_digestion: self.gene_digestion.mutate(rng),
             gene_reproduction: self.gene_reproduction.mutate(rng),
+            fcm: self.fcm.clone(),
          };
          Some(res)
 

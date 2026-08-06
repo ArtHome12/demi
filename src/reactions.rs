@@ -89,7 +89,7 @@ impl<'a> IntoIterator for &'a UIReactions {
    }
 }
 
-impl std::iter::FromIterator<UIReaction> for UIReactions {
+impl FromIterator<UIReaction> for UIReactions {
    fn from_iter<I: IntoIterator<Item = UIReaction>>(iter: I) -> Self {
       Self(iter.into_iter()
          .collect())

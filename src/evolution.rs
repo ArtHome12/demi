@@ -8,7 +8,7 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2013-2023 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use std::{ops::RangeInclusive, ptr};
+use std::ops::RangeInclusive;
 use rand::distr::{Distribution, Uniform};
 use rayon::prelude::*;
 
@@ -108,45 +108,29 @@ impl Evolution {
       let rnd_bit = Uniform::try_from(0..env.bits_count).unwrap();
       let rnd_dir = Uniform::try_from(0..8).unwrap();
 
-      // Bounds for pointer
-      let first = ptr::addr_of_mut!(sheet.matrix[0]);
-      let last = unsafe{ first.add(env.bits_count) };
-
       (0..env.num_points_to_diffuse).for_each(|_| {
          // Get a random point
-         let origin_bit = ptr::addr_of_mut!(sheet.matrix[rnd_bit.sample(&mut rng)]);
-
-         let origin_amount = unsafe{ origin_bit.read() };
+         let origin_index = rnd_bit.sample(&mut rng);
+         let origin_amount = sheet.matrix[origin_index];
 
          // Amount to tranfer based on its volatility
          let share_amount = (origin_amount as f32 * sheet.volatility) as usize;
 
          // If there is something to transfer
          if share_amount > 0 {
-            // Point to transfer amount
+            // Point to transfer amount (toroidal wraparound)
             let dir = rnd_dir.sample(&mut rng);
             let dest = env.distance(dir.into());
-            let mut dest = origin_bit.wrapping_offset(dest);
+            let dest_index = (origin_index as isize + dest).rem_euclid(env.bits_count as isize) as usize;
 
-            unsafe {
-               // Check bounds
-               if dest < first {
-                  let delta = dest.offset_from(first);   // negative value
-                  dest = last.wrapping_offset(delta);
-               } else if dest >= last {
-                  let delta = dest.offset_from(last);    // positive value
-                  dest = first.wrapping_offset(delta);
-               }
+            // Add to destination and save, how much it turned out
+            let old_val = sheet.matrix[dest_index];
+            let new_val = old_val.saturating_add(share_amount);
+            sheet.matrix[dest_index] = new_val;
+            let actual_share = new_val - old_val;
 
-               // Add to destination and save, how much it turned out
-               let old_val = dest.read();
-               let new_val = old_val.saturating_add(share_amount);
-               std::ptr::write(dest, new_val);
-               let actual_share = new_val - old_val;
-
-               // Deduct actual amount from origin
-               std::ptr::write(origin_bit, (origin_amount - actual_share) as usize);
-            }
+            // Deduct actual amount from origin
+            sheet.matrix[origin_index] = origin_amount - actual_share;
          }
       });
    }

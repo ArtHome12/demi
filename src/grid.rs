@@ -22,7 +22,7 @@ use iced::advanced::layout::{self, Layout};
 use iced::advanced::graphics::color;
 use iced::advanced::graphics::mesh::{self, SolidVertex2D,};
 
-use std::{rc::Rc, cell::RefCell, ptr};
+use std::{rc::Rc, cell::RefCell};
 use euclid::{Size2D, Point2D, Scale};
 
 use crate::world::World;
@@ -727,11 +727,8 @@ impl Bitmap {
                color.a = 1.0;
             }
    
-            let color = Vec::from(color.into_rgba8());
-            unsafe {
-               let dst = bitmap.storage.as_mut_ptr().add(i);
-               ptr::copy_nonoverlapping(color.as_ptr(), dst, 4);
-            }
+            let color = color.into_rgba8();
+            bitmap.storage[i..i + 4].copy_from_slice(&color);
             i += 4;
          };
       }

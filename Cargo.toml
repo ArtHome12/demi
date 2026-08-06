@@ -64,3 +64,6 @@ match_wild_err_arm = { level = "allow", priority = 1 }
 doc_markdown = { level = "allow", priority = 1 }
 struct_excessive_bools = { level = "allow", priority = 1 }
 many_single_char_names = { level = "allow", priority = 1 }
+# Структуры симуляции сериализуются целиком, а unsafe (сырые указатели PtrElements)
+# встречается лишь в методах с проверенными инвариантами; сам serde-дерив безопасен.
+unsafe_derive_deserialize = { level = "allow", priority = 1 }

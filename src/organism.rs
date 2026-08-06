@@ -53,7 +53,7 @@ impl Organism {
       let r = self.gene_digestion.reaction;
       let r = reactions.get(r);
       let avail = r.left.iter().all(|reagent| {
-            reagent.amount <= ptr.get(reagent.index, serial)
+            reagent.amount <= unsafe { ptr.get(reagent.index, serial) }
          });
       if !avail {
          return
@@ -64,13 +64,13 @@ impl Organism {
       // Subtract source elements
       r.left.iter()
       .for_each(|reagent| {
-         ptr.dec_amount(reagent.index, serial, reagent.amount);
+         unsafe { ptr.dec_amount(reagent.index, serial, reagent.amount) };
       });
 
       // Add the resulting elements
       r.right.iter()
       .for_each(|reagent| {
-         ptr.inc_amount(reagent.index, serial, reagent.amount);
+         unsafe { ptr.inc_amount(reagent.index, serial, reagent.amount) };
       });
 
       // Increase vitality

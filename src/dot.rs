@@ -87,21 +87,38 @@ impl PtrElements {
       Self(ptr)
    }
 
+   /// Read the amount of `element_index` element at `serial` point.
+   ///
+   /// # Safety
+   /// `element_index` must reference a valid sheet and `serial` must be within
+   /// that sheet's bounds; otherwise the raw pointer arithmetic reads out of
+   /// bounds. The backing `ElementsSheets` must stay alive and unmoved while the
+   /// pointer view is in use.
    #[must_use]
-   pub fn get(&self, element_index: usize, serial: usize) -> usize {
-      unsafe{ (self.0[element_index] as *const usize).add(serial).read() }
+   pub unsafe fn get(&self, element_index: usize, serial: usize) -> usize {
+      unsafe { (self.0[element_index] as *const usize).add(serial).read() }
    }
 
-   pub fn inc_amount(&self, element_index: usize, serial: usize, delta: usize) {
-      unsafe{ 
+   /// Increase by `delta` the amount of `element_index` element at `serial` point.
+   ///
+   /// # Safety
+   /// Same invariants as [`Self::get`]: valid `element_index`/`serial` and a live,
+   /// stable `ElementsSheets` backing store.
+   pub unsafe fn inc_amount(&self, element_index: usize, serial: usize, delta: usize) {
+      unsafe {
          let dest = (self.0[element_index] as *mut usize).add(serial);
          let new_val = dest.read().saturating_add(delta);
          std::ptr::write(dest, new_val);
       }
    }
 
-   pub fn dec_amount(&self, element_index: usize, serial: usize, delta: usize) {
-      unsafe{
+   /// Decrease by `delta` the amount of `element_index` element at `serial` point.
+   ///
+   /// # Safety
+   /// Same invariants as [`Self::get`]: valid `element_index`/`serial` and a live,
+   /// stable `ElementsSheets` backing store.
+   pub unsafe fn dec_amount(&self, element_index: usize, serial: usize, delta: usize) {
+      unsafe {
          let dest = (self.0[element_index] as *mut usize).add(serial);
          let new_val = dest.read().saturating_sub(delta);
          std::ptr::write(dest, new_val);

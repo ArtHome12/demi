@@ -311,7 +311,7 @@ impl World {
 
       // Corresponding bit of the world
       let serial_bit = self.size().serial(x, y);
-      let energy = self.ptr_elements.get(0, serial_bit);
+      let energy = unsafe { self.ptr_elements.get(0, serial_bit) };
 
       // Find the dot color among animals
       let mut stack = self.ptr_animals.get_stack(serial_bit);
@@ -329,7 +329,7 @@ impl World {
          let color = self.vis_elem_indexes.iter()
          .enumerate()
          .find_map(|(item_index, visible)| {
-            if *visible && self.ptr_elements.get(item_index, serial_bit) > 0 {
+            if *visible && unsafe { self.ptr_elements.get(item_index, serial_bit) } > 0 {
                Some(self.ui_elements[item_index].color)
             } else {
                None
@@ -388,7 +388,7 @@ impl World {
       .filter(|(_index, vis)| **vis)
       .take(remaining_lines)
       .fold(animal_desc, |acc, (vis_index, _)| {
-         format!("{}{}: {}{}", acc, self.ui_elements[vis_index].name, self.ptr_elements.get(vis_index, serial_bit), delimiter)
+         format!("{}{}: {}{}", acc, self.ui_elements[vis_index].name, unsafe { self.ptr_elements.get(vis_index, serial_bit) }, delimiter)
       })
    }
 

@@ -2,7 +2,7 @@
 name = "demi"
 version = "0.2.0"
 authors = ["Artem Khomenko <_mag12@yahoo.com>"]
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -29,3 +29,41 @@ bitvec = { version = "1.0", features = ["serde"] }
 
 [target.'cfg(windows)'.build-dependencies]
 embed-resource = "3.0"
+
+[build-dependencies]
+embed-resource = "3.0"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "evolution"
+harness = false
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
+# Осознанно разрешаем: симуляция много кастует координаты usize/isize/f32,
+# доменные аббревиатуры (FPS/TPS/FSM) и длинные match/update функции.
+cast_possible_truncation = { level = "allow", priority = 1 }
+cast_possible_wrap = { level = "allow", priority = 1 }
+cast_sign_loss = { level = "allow", priority = 1 }
+cast_precision_loss = { level = "allow", priority = 1 }
+cast_lossless = { level = "allow", priority = 1 }
+too_many_lines = { level = "allow", priority = 1 }
+missing_panics_doc = { level = "allow", priority = 1 }
+missing_errors_doc = { level = "allow", priority = 1 }
+upper_case_acronyms = { level = "allow", priority = 1 }
+enum_variant_names = { level = "allow", priority = 1 }
+struct_field_names = { level = "allow", priority = 1 }
+large_enum_variant = { level = "allow", priority = 1 }
+return_self_not_must_use = { level = "allow", priority = 1 }
+unused_self = { level = "allow", priority = 1 }
+match_wildcard_for_single_variants = { level = "allow", priority = 1 }
+match_wild_err_arm = { level = "allow", priority = 1 }
+doc_markdown = { level = "allow", priority = 1 }
+struct_excessive_bools = { level = "allow", priority = 1 }
+many_single_char_names = { level = "allow", priority = 1 }
+# Структуры симуляции сериализуются целиком, а unsafe (сырые указатели PtrElements)
+# встречается лишь в методах с проверенными инвариантами; сам serde-дерив безопасен.
+unsafe_derive_deserialize = { level = "allow", priority = 1 }

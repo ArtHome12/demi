@@ -10,6 +10,7 @@ Copyright (c) 2013-2022 by Artem Khomenko _mag12@yahoo.com.
 
 use iced::widget::{Image, image::Handle, };
 
+#[derive(Debug, Clone, Copy)]
 pub enum Images {
    IlluminateOn,
    IlluminateOff,
@@ -35,6 +36,7 @@ pub struct Resources {
 }
 
 impl Resources {
+   #[must_use]
    pub fn new(dir: &str) -> Self {
       Self {
          illuminate_on: Handle::from_path(String::from(dir) + "/illuminate_on.png"),

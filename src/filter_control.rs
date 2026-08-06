@@ -19,7 +19,7 @@ use iced::widget::{scrollable,
 use crate::world::World;
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Message {
    ItemToggledElement(usize, bool), // index, checked
    ItemToggledAnimal(usize, bool), // index, checked

@@ -12,11 +12,11 @@ use std::{fs::File, path::PathBuf, sync::{Arc, atomic::{AtomicU8, AtomicUsize, O
 use std::time::{Duration, Instant,};
 use std::io::{BufReader, BufWriter,};
 
-use crate::{dot::ElementsSheet, evolution::Evolution, environment::*};
+use crate::{dot::ElementsSheet, evolution::Evolution, environment::Environment};
 pub use crate::dot::{Dot, ElementsSheets, PtrElements};
-use crate::geom::*;
+use crate::geom::Size;
 use crate::project::{Project, Element, };
-use crate::organism::*;
+use crate::organism::{PtrAnimals, AnimalsSheet, Organism};
 use crate::reactions::UIReactions;
 use crate::genes::NutritionMode;
 
@@ -60,12 +60,13 @@ impl From<u8> for ThreadMode {
          4 => ThreadMode::Shutdown,
          5 => ThreadMode::Save,
          6 => ThreadMode::Load,
-         _ => panic!("world::ThreadMode({})", n),
+         _ => panic!("world::ThreadMode({n})"),
       }
    }
 }
 
 impl World {
+   #[must_use]
    pub fn new(project: Project, load_bin: bool) -> Self {
       // Initialize structures from project
       let ui_elements = project.elements;
@@ -129,13 +130,13 @@ impl World {
       let ptr_elements = PtrElements::new(&evolution.elements);
       let ptr_animals = PtrAnimals::new(&evolution.animals);
 
-      let thread_handle = Self::spawn(
+      let thread_handle = Some(Self::spawn(
          env.clone(),
          evolution,
          mode.clone(),
          ticks_elapsed.clone(),
          filename,
-      );
+      ));
 
       // At start all elements should be visible, collect its indexes
       let len = ui_elements.len();
@@ -159,9 +160,9 @@ impl World {
       }
    }
 
-   fn spawn(env: Environment, mut evolution: Evolution, mode: Arc<AtomicU8>, ticks: Arc<AtomicUsize>, filename: PathBuf) -> Option<Handle> {
+   fn spawn(env: Environment, mut evolution: Evolution, mode: Arc<AtomicU8>, ticks: Arc<AtomicUsize>, filename: PathBuf) -> Handle {
       // Thread for calculate evolution
-      let thread_handle = std::thread::spawn(move || {
+      std::thread::spawn(move || {
          let sleep_time = Duration::from_millis(100);
 
          // For resume after save
@@ -207,9 +208,7 @@ impl World {
    
          // Let's dangle the data so that it remains available to the main thread to avoid undefined behavior
          std::mem::forget(evolution);
-      });
-
-      Some(thread_handle)
+      })
    }
 
 
@@ -303,6 +302,7 @@ impl World {
 
    // Return dot at display position
    // The world must be continuous, the first point goes to the right (or bottom) of the last point again
+   #[must_use]
    pub fn dot(&self, x: isize, y: isize) -> Dot {
       let s = &self.size();
 
@@ -311,7 +311,7 @@ impl World {
 
       // Corresponding bit of the world
       let serial_bit = self.size().serial(x, y);
-      let energy = self.ptr_elements.get(0, serial_bit);
+      let energy = unsafe { self.ptr_elements.get(0, serial_bit) };
 
       // Find the dot color among animals
       let mut stack = self.ptr_animals.get_stack(serial_bit);
@@ -329,7 +329,7 @@ impl World {
          let color = self.vis_elem_indexes.iter()
          .enumerate()
          .find_map(|(item_index, visible)| {
-            if *visible && self.ptr_elements.get(item_index, serial_bit) > 0 {
+            if *visible && unsafe { self.ptr_elements.get(item_index, serial_bit) } > 0 {
                Some(self.ui_elements[item_index].color)
             } else {
                None
@@ -351,6 +351,7 @@ impl World {
 
 
    // Text to describe a point with a size constraint
+   #[must_use]
    pub fn description(&self, dot: &Dot, max_lines: usize, delimiter: char) -> String {
 
       // Underlying bit serial number for dot
@@ -378,7 +379,7 @@ impl World {
          // Decrease max lines (side effect)
          remaining_lines -= 1;
 
-         format!("{}[{}۩ {}]{}", acc, age, o, delimiter)
+         format!("{acc}[{age}۩ {o}]{delimiter}")
       });
 
       // Inanimal world
@@ -387,7 +388,7 @@ impl World {
       .filter(|(_index, vis)| **vis)
       .take(remaining_lines)
       .fold(animal_desc, |acc, (vis_index, _)| {
-         format!("{}{}: {}{}", acc, self.ui_elements[vis_index].name, self.ptr_elements.get(vis_index, serial_bit), delimiter)
+         format!("{}{}: {}{}", acc, self.ui_elements[vis_index].name, unsafe { self.ptr_elements.get(vis_index, serial_bit) }, delimiter)
       })
    }
 
@@ -418,16 +419,19 @@ impl World {
 
 
    // Returns model time - a number ticks elapsed from beginning
+   #[must_use]
    pub fn ticks_elapsed(&self) -> usize {
       self.ticks_elapsed.load(Ordering::Relaxed)
    }
 
 
+   #[must_use]
    pub fn size(&self) -> Size {
       self.env.world_size
    }
 
 
+   #[must_use]
    pub fn date(&self) -> (usize, usize) {
       let now = self.ticks_elapsed();
       Environment::date(now)
@@ -462,6 +466,7 @@ impl World {
    }
 
 
+   #[must_use]
    pub fn busy(&self) -> bool {
       let state: ThreadMode = self.mode.load(Ordering::Relaxed).into();
       state == ThreadMode::Save || state == ThreadMode::Load

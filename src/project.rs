@@ -12,8 +12,8 @@ use std::{fs, collections::HashMap, };
 use std::path::PathBuf;
 use serde::Deserialize;
 
-use crate::geom::*;
-use crate::reactions::*;
+use crate::geom::Size;
+use crate::reactions::{Reactions, UIReactions, Reagent, Reaction, UIReaction};
 
 
 // Content of a toml project file
@@ -92,16 +92,17 @@ pub struct Element {
 }
 
 impl Project {
+   #[must_use]
    pub fn new(filename: PathBuf) -> Self {
 
       // Reads reactions reagents
-      fn do_reagents(elements: &Vec<Element>, part: &Vec<ReactionReagent>) -> Vec<Reagent> {
+      fn do_reagents(elements: &[Element], part: &[ReactionReagent]) -> Vec<Reagent> {
          part.iter().map(|reagent| {
 
             // Element index from its name
             let index = elements.iter()
             .position(|v| v.name == reagent.element)
-            .expect(&format!("Unknown chemical reagent {}", reagent.element));
+            .unwrap_or_else(|| panic!("Unknown chemical reagent {}", reagent.element));
 
             Reagent {
                index,
@@ -140,7 +141,7 @@ impl Project {
 
       let ui_reactions = toml.chemical.iter().map(|val| {
          UIReaction {
-            name: val.name.to_owned(),
+            name: val.name.clone(),
             color: Project::color_by_name(&toml, &val.color),
          }
       }).collect::<UIReactions>();
@@ -155,7 +156,7 @@ impl Project {
       // Check data for first organism
       let reaction_name = &toml.luca.digestion;
       let luca_reaction = ui_reactions.index(reaction_name)
-      .expect(&format!("Unknown reaction for digestion LUCA {}", reaction_name));
+      .unwrap_or_else(|| panic!("Unknown reaction for digestion LUCA {reaction_name}"));
 
       Self {
          size,

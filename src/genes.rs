@@ -51,6 +51,7 @@ impl From<RawDigestion> for Digestion {
 
 
 impl Digestion {
+   #[must_use]
    pub fn new(reaction: usize, number_of_reactions: usize, mode: NutritionMode) -> Self {
       Self {
          reaction,
@@ -94,6 +95,7 @@ pub struct Reproduction {
 
 
 impl Reproduction {
+   #[must_use]
    pub fn new(level: usize) -> Self {
       Self {
          level,
@@ -117,7 +119,7 @@ impl Gene for Reproduction {
 
       Self {
          level,
-         variability: self.variability.clone(),
+         variability: self.variability,
       }
    }
 }

@@ -126,7 +126,7 @@ impl Demi {
          Message::ProjectMessage(message) => {
 
             // Reflecting the interface change immediately
-            self.controls.update(message.clone());
+            self.controls.update(message);
 
             // Translate from project message to own and create new command
             match message {
@@ -143,7 +143,7 @@ impl Demi {
          Message::GridMessage(message) => {
             self.grid_mut()
                .update(message)
-               .map(| msg | Message::GridMessage(msg))
+               .map(Message::GridMessage)
          }
 
          Message::FilterMessage(message) => {
@@ -299,7 +299,8 @@ impl Demi {
       let grid = Grid::new(grid_world);
       let (panes, grid_pane) = pane_grid::State::new(PaneState::new(PaneContent::Grid(grid)));
 
-      let res = Self {
+      
+      Self {
          world,
          controls,
          panes,
@@ -307,8 +308,7 @@ impl Demi {
          filter_pane: None,
          grid_pane_ratio: 0.8,
          last_one_second_time: Instant::now(),
-      };
-      res
+      }
    }
 
 
@@ -385,8 +385,8 @@ impl PaneState {
    
    fn view(&self) -> Element<'_, Message> {
       match &self.content {
-         PaneContent::Grid(grid) => grid.view().map(move |message| Message::GridMessage(message)),
-         PaneContent::Filter(filter) => filter.view().map(move |message| Message::FilterMessage(message)),
+         PaneContent::Grid(grid) => grid.view().map(Message::GridMessage),
+         PaneContent::Filter(filter) => filter.view().map(Message::FilterMessage),
       }
    }
 }
@@ -394,7 +394,7 @@ impl PaneState {
 
 fn open_file_dialog(
    window: &dyn Window,
-) -> impl std::future::Future<Output = Option<PathBuf>> {
+) -> impl std::future::Future<Output = Option<PathBuf>> + Send + use<> {
    let dialog = rfd::AsyncFileDialog::new()
       .set_title("Open a project...")
       .add_filter("demi projects", &["toml"])
@@ -403,7 +403,7 @@ fn open_file_dialog(
 
    async move {
       let picked_file = dialog.pick_file().await;
-      picked_file.map(|file| file.into())
+      picked_file.map(std::convert::Into::into)
    }
 }
 

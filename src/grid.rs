@@ -22,11 +22,11 @@ use iced::advanced::layout::{self, Layout};
 use iced::advanced::graphics::color;
 use iced::advanced::graphics::mesh::{self, SolidVertex2D,};
 
-use std::{rc::Rc, cell::RefCell, ptr};
-use euclid::*;
+use std::{rc::Rc, cell::RefCell};
+use euclid::{Size2D, Point2D, Scale};
 
 use crate::world::World;
-use crate::update_rate::*;
+use crate::update_rate::{FPS, TPS};
 
 pub struct Grid {
    cell_text_cache: Cache,
@@ -265,7 +265,7 @@ impl Grid {
 
             stack(vec![img, canvas,]).into()
          } else {
-            canvas.into()
+            canvas
          }
       } else {
          let widget = MeshWidget {
@@ -303,12 +303,12 @@ impl Grid {
          self.fps.borrow_mut().clock_chime();
 
          self.tps.clock_chime(tick);
-      };
+      }
 
       // For update screen
       if self.last_tick != tick {
          self.last_tick = tick;
-         self.clear_cache(false)
+         self.clear_cache(false);
       }
 
       self.update_grid_content()
@@ -331,7 +331,7 @@ impl Grid {
       while p.x < bounds.width {
          let from = Point::new(p.x, 0.0);
          let to = Point::new(p.x, bounds.height);
-         frame.stroke(&Path::line(from, to), stroke.to_owned());
+         frame.stroke(&Path::line(from, to), stroke);
          p.x += step.width;
       }
 
@@ -339,7 +339,7 @@ impl Grid {
       while p.y < bounds.height {
          let from = Point::new(0.0, p.y);
          let to = Point::new(bounds.width, p.y);
-         frame.stroke(&Path::line(from, to), stroke.to_owned());
+         frame.stroke(&Path::line(from, to), stroke);
          p.y += step.height;
       }
    }
@@ -351,7 +351,7 @@ impl Grid {
    }
 }
 
-impl<'a> canvas::Program<Message> for Grid {
+impl canvas::Program<Message> for Grid {
 
    type State = Interaction;
 
@@ -366,10 +366,9 @@ impl<'a> canvas::Program<Message> for Grid {
          *interaction = Interaction::None;
       }
 
-      let cursor_position = if let Some(position) = cursor.position_in(bounds) {
+      let cursor_position = {
+          let position = cursor.position_in(bounds)?;
          PointS::new(position.x, position.y)
-      } else {
-         return None;
       };
 
       match event {
@@ -397,8 +396,7 @@ impl<'a> canvas::Program<Message> for Grid {
 
                Some(
                   msg
-                      .map(canvas::Action::publish)
-                      .unwrap_or(canvas::Action::request_redraw())
+                      .map_or(canvas::Action::request_redraw(), canvas::Action::publish)
                       .and_capture(),
               )
             }
@@ -415,8 +413,7 @@ impl<'a> canvas::Program<Message> for Grid {
                };
 
                let action = msg
-               .map(canvas::Action::publish)
-               .unwrap_or(canvas::Action::request_redraw());
+               .map_or(canvas::Action::request_redraw(), canvas::Action::publish);
 
                Some(match interaction {
                      Interaction::None => action,
@@ -531,7 +528,7 @@ impl<'a> canvas::Program<Message> for Grid {
          let geom = self.cell_text_cache.draw(renderer,
             bounds.size(), |frame| {
                let region = Rectangle::with_size(bounds.size());
-               frame.with_clip(region, |frame| closure(frame))
+               frame.with_clip(region, |frame| closure(frame));
             }
          );
          Some(geom)
@@ -616,8 +613,8 @@ impl<'a> canvas::Program<Message> for Grid {
                         a: 0.5,
                         ..Color::BLACK
                      },
-                  )
-               })
+                  );
+               });
             }
 
             // Output info at bottom left edge
@@ -654,16 +651,13 @@ impl<'a> canvas::Program<Message> for Grid {
 }
 
 
+#[derive(Default)]
 pub enum Interaction {
+   #[default]
    None,
    Panning { translation: PointW, start: PointS },
 }
 
-impl Default for Interaction {
-   fn default() -> Self {
-       Self::None
-   }
-}
 
 // To store the off-screen image
 struct Bitmap {
@@ -733,11 +727,8 @@ impl Bitmap {
                color.a = 1.0;
             }
    
-            let color = Vec::from(color.into_rgba8());
-            unsafe {
-               let dst = bitmap.storage.as_mut_ptr().add(i);
-               ptr::copy_nonoverlapping(color.as_ptr(), dst, 4);
-            }
+            let color = color.into_rgba8();
+            bitmap.storage[i..i + 4].copy_from_slice(&color);
             i += 4;
          };
       }
@@ -863,7 +854,7 @@ struct MeshWidget<'a> {
 }
 
 
-impl<'a, Message> Widget<Message, Theme, Renderer> for MeshWidget<'a> {
+impl<Message> Widget<Message, Theme, Renderer> for MeshWidget<'_> {
    fn size(&self) -> Size<Length> {
        Size {
            width: Length::Fill,
@@ -909,7 +900,7 @@ impl<'a, Message> Widget<Message, Theme, Renderer> for MeshWidget<'a> {
        let mesh = Mesh::Solid {
          buffers: self.data.buffers.clone(),
          transformation: Transformation::IDENTITY,
-         clip_bounds: clip_bounds,
+         clip_bounds,
       };
 
       renderer.with_translation(

@@ -12,7 +12,7 @@ use bitvec::prelude::*;
 use serde::{Serialize, Deserialize};
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[allow(dead_code)]
 pub enum State {
    On,

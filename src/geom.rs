@@ -34,6 +34,7 @@ impl Coord {
    }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum Direction {
    North,
    Northeast,

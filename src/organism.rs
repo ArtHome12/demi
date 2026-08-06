@@ -78,7 +78,7 @@ impl Organism {
    }
 
 
-   pub fn digestion_heterotroph(&mut self, food: Organism, reactions: &Reactions) {
+   pub fn digestion_heterotroph(&mut self, food: &Organism, reactions: &Reactions) {
       // For first part of portion
       let r = self.gene_digestion.reaction;
       let r = reactions.get(r);
@@ -212,7 +212,7 @@ impl<'s> AnimalsStack {
             NutritionMode::Heterotroph => {
                let food = ptr_animals.get_stack(serial).get_dead();
                if let Some(food) = food {
-                  animal.digestion_heterotroph(food, reactions);
+                  animal.digestion_heterotroph(&food, reactions);
                }
             }
          }

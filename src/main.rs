@@ -126,7 +126,7 @@ impl Demi {
          Message::ProjectMessage(message) => {
 
             // Reflecting the interface change immediately
-            self.controls.update(message.clone());
+            self.controls.update(message);
 
             // Translate from project message to own and create new command
             match message {

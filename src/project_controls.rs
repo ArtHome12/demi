@@ -120,7 +120,7 @@ impl Controls {
    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Message {
    ToggleIllumination,
    ToggleFilter,

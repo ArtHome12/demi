@@ -130,13 +130,13 @@ impl World {
       let ptr_elements = PtrElements::new(&evolution.elements);
       let ptr_animals = PtrAnimals::new(&evolution.animals);
 
-      let thread_handle = Self::spawn(
+      let thread_handle = Some(Self::spawn(
          env.clone(),
          evolution,
          mode.clone(),
          ticks_elapsed.clone(),
          filename,
-      );
+      ));
 
       // At start all elements should be visible, collect its indexes
       let len = ui_elements.len();
@@ -160,9 +160,9 @@ impl World {
       }
    }
 
-   fn spawn(env: Environment, mut evolution: Evolution, mode: Arc<AtomicU8>, ticks: Arc<AtomicUsize>, filename: PathBuf) -> Option<Handle> {
+   fn spawn(env: Environment, mut evolution: Evolution, mode: Arc<AtomicU8>, ticks: Arc<AtomicUsize>, filename: PathBuf) -> Handle {
       // Thread for calculate evolution
-      let thread_handle = std::thread::spawn(move || {
+      std::thread::spawn(move || {
          let sleep_time = Duration::from_millis(100);
 
          // For resume after save
@@ -208,9 +208,7 @@ impl World {
    
          // Let's dangle the data so that it remains available to the main thread to avoid undefined behavior
          std::mem::forget(evolution);
-      });
-
-      Some(thread_handle)
+      })
    }
 
 

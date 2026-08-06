@@ -351,7 +351,7 @@ impl Grid {
    }
 }
 
-impl<'a> canvas::Program<Message> for Grid {
+impl canvas::Program<Message> for Grid {
 
    type State = Interaction;
 

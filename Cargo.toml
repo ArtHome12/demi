@@ -58,13 +58,9 @@ enum_variant_names = { level = "allow", priority = 1 }
 struct_field_names = { level = "allow", priority = 1 }
 large_enum_variant = { level = "allow", priority = 1 }
 return_self_not_must_use = { level = "allow", priority = 1 }
-needless_pass_by_value = { level = "allow", priority = 1 }
 unused_self = { level = "allow", priority = 1 }
 match_wildcard_for_single_variants = { level = "allow", priority = 1 }
 match_wild_err_arm = { level = "allow", priority = 1 }
 doc_markdown = { level = "allow", priority = 1 }
-single_match_else = { level = "allow", priority = 1 }
 struct_excessive_bools = { level = "allow", priority = 1 }
-unnecessary_wraps = { level = "allow", priority = 1 }
 many_single_char_names = { level = "allow", priority = 1 }
-extra_unused_lifetimes = { level = "allow", priority = 1 }

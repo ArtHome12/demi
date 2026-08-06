@@ -11,7 +11,7 @@ Copyright (c) 2013-2023 by Artem Khomenko _mag12@yahoo.com.
 use iced::{Alignment, Element, Length, };
 use iced::widget::{checkbox, row, button, container, };
 
-use crate::resources::*;
+use crate::resources::{Resources, Images};
 
 pub struct Controls {
    run: bool, // run or pause calculation

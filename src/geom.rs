@@ -17,15 +17,18 @@ pub struct Coord {
 pub type Size = Coord;
 
 impl Coord {
+   #[must_use]
    pub fn new(x: usize, y: usize) -> Self {
       Self {x, y}
    }
 
    // Serial number of a dot with this coordinates
+   #[must_use]
    pub fn serial(&self, x: usize, y: usize) -> usize {
       y * self.x + x
    }
 
+   #[must_use]
    pub fn max_serial(&self) -> usize {
       self.x * self.y
    }

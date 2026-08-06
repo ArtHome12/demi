@@ -12,7 +12,7 @@ use std::ptr;
 use iced::Color;
 use serde::{Serialize, Deserialize};
 
-use crate::geom::*;
+use crate::geom::Size;
 
 // Representation for display
 #[derive(Debug, Clone, Copy)]
@@ -35,6 +35,7 @@ pub struct ElementsSheet {
 }
 
 impl ElementsSheet {
+   #[must_use]
    pub fn new(size: Size, initial_amount: usize, volatility: f32) -> Self {
 
       // Amount of points
@@ -55,6 +56,7 @@ impl ElementsSheet {
 pub struct ElementsSheets(Vec<ElementsSheet>);
 
 impl ElementsSheets {
+   #[must_use]
    pub fn get(&self) -> &Vec<ElementsSheet> {
       &self.0
    }
@@ -75,6 +77,7 @@ impl std::iter::FromIterator<ElementsSheet> for ElementsSheets {
 pub struct PtrElements(Vec<usize>);
 
 impl PtrElements {
+   #[must_use]
    pub fn new(sheets: &ElementsSheets) -> Self {
       // Store raw pointers to elements
       let ptr = sheets.get().iter()
@@ -84,6 +87,7 @@ impl PtrElements {
       Self(ptr)
    }
 
+   #[must_use]
    pub fn get(&self, element_index: usize, serial: usize) -> usize {
       unsafe{ (self.0[element_index] as *const usize).add(serial).read() }
    }

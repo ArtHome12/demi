@@ -12,11 +12,11 @@ use std::{fs::File, path::PathBuf, sync::{Arc, atomic::{AtomicU8, AtomicUsize, O
 use std::time::{Duration, Instant,};
 use std::io::{BufReader, BufWriter,};
 
-use crate::{dot::ElementsSheet, evolution::Evolution, environment::*};
+use crate::{dot::ElementsSheet, evolution::Evolution, environment::Environment};
 pub use crate::dot::{Dot, ElementsSheets, PtrElements};
-use crate::geom::*;
+use crate::geom::Size;
 use crate::project::{Project, Element, };
-use crate::organism::*;
+use crate::organism::{PtrAnimals, AnimalsSheet, Organism};
 use crate::reactions::UIReactions;
 use crate::genes::NutritionMode;
 
@@ -60,12 +60,13 @@ impl From<u8> for ThreadMode {
          4 => ThreadMode::Shutdown,
          5 => ThreadMode::Save,
          6 => ThreadMode::Load,
-         _ => panic!("world::ThreadMode({})", n),
+         _ => panic!("world::ThreadMode({n})"),
       }
    }
 }
 
 impl World {
+   #[must_use]
    pub fn new(project: Project, load_bin: bool) -> Self {
       // Initialize structures from project
       let ui_elements = project.elements;
@@ -303,6 +304,7 @@ impl World {
 
    // Return dot at display position
    // The world must be continuous, the first point goes to the right (or bottom) of the last point again
+   #[must_use]
    pub fn dot(&self, x: isize, y: isize) -> Dot {
       let s = &self.size();
 
@@ -351,6 +353,7 @@ impl World {
 
 
    // Text to describe a point with a size constraint
+   #[must_use]
    pub fn description(&self, dot: &Dot, max_lines: usize, delimiter: char) -> String {
 
       // Underlying bit serial number for dot
@@ -378,7 +381,7 @@ impl World {
          // Decrease max lines (side effect)
          remaining_lines -= 1;
 
-         format!("{}[{}۩ {}]{}", acc, age, o, delimiter)
+         format!("{acc}[{age}۩ {o}]{delimiter}")
       });
 
       // Inanimal world
@@ -418,16 +421,19 @@ impl World {
 
 
    // Returns model time - a number ticks elapsed from beginning
+   #[must_use]
    pub fn ticks_elapsed(&self) -> usize {
       self.ticks_elapsed.load(Ordering::Relaxed)
    }
 
 
+   #[must_use]
    pub fn size(&self) -> Size {
       self.env.world_size
    }
 
 
+   #[must_use]
    pub fn date(&self) -> (usize, usize) {
       let now = self.ticks_elapsed();
       Environment::date(now)
@@ -462,6 +468,7 @@ impl World {
    }
 
 
+   #[must_use]
    pub fn busy(&self) -> bool {
       let state: ThreadMode = self.mode.load(Ordering::Relaxed).into();
       state == ThreadMode::Save || state == ThreadMode::Load

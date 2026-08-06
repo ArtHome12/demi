@@ -13,6 +13,7 @@ use serde::{Serialize, Deserialize};
 
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum State {
    On,
    Off,
@@ -20,6 +21,7 @@ pub enum State {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct Line {
    // 0 = dont care, 1 = defined (on or off)
    pub defined: BitVec,
@@ -27,7 +29,9 @@ pub struct Line {
    pub state: BitVec,
 }
 
+#[allow(dead_code)]
 impl Line {
+   #[must_use]
    pub fn new(size: usize) -> Self {
       Self {
          defined: bitvec![0; size],
@@ -56,6 +60,7 @@ impl Line {
    }
 
 
+   #[must_use]
    pub fn get(&self, index: usize) -> State {
       if self.defined[index] {
          if self.state[index] {
@@ -69,14 +74,14 @@ impl Line {
    }
 
 
+   #[must_use]
    pub fn matches(&self, other: &Line) -> bool {
       // Check if all defined bits in self match the corresponding bits in other
       for (i, defined) in self.defined.iter().enumerate() {
-         if *defined {
-            if self.state[i] != other.state[i] {
+         if *defined
+            && self.state[i] != other.state[i] {
                return false;
             }
-         }
       }
       true
    }

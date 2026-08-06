@@ -12,10 +12,10 @@ use std::{ops::RangeInclusive, ptr};
 use rand::distr::{Distribution, Uniform};
 use rayon::prelude::*;
 
-use crate::dot::*;
-use crate::geom::*;
-use crate::environment::*;
-use crate::organism::*;
+use crate::dot::{ElementsSheets, PtrElements, ElementsSheet};
+use crate::geom::{Coord, Size};
+use crate::environment::Environment;
+use crate::organism::{AnimalsSheet, PtrAnimals};
 use crate::reactions::Reactions;
 
 pub struct Evolution {
@@ -32,6 +32,7 @@ pub struct Evolution {
 
 impl Evolution {
 
+   #[must_use]
    pub fn new(elements: ElementsSheets, animals: AnimalsSheet, reactions: Reactions) -> Self {
       Self {
          elements,
@@ -46,12 +47,12 @@ impl Evolution {
       self.elements.get_mut()
       .as_parallel_slice_mut()
       .into_par_iter()
-      .for_each(|mut sheet| {
+      .for_each(|sheet| {
          // Irradiate with solar energy or shuffle elements
          if sheet.volatility < 0.0 {
-            Self::shine(env, &mut sheet, tick);
+            Self::shine(env, sheet, tick);
          } else {
-            Self::diffusion(env, &mut sheet);
+            Self::diffusion(env, sheet);
          }
       });
 
@@ -147,7 +148,7 @@ impl Evolution {
                std::ptr::write(origin_bit, (origin_amount - actual_share) as usize);
             }
          }
-      })
+      });
    }
 
 
@@ -173,7 +174,7 @@ impl Evolution {
          }
 
          self.animals.transfer(origin_bit, dest_bit as usize);
-      })
+      });
    }
 
 
@@ -192,8 +193,8 @@ impl Evolution {
       .enumerate()
       .for_each(|(serial, animals)| {
          // Each alive organism at the point
-         animals.digestion(&ptr_elements, &ptr_animals, serial, &self.reactions)
-      })
+         animals.digestion(&ptr_elements, &ptr_animals, serial, &self.reactions);
+      });
    }
 
 
@@ -221,7 +222,7 @@ impl Evolution {
       // Each point on the ground
       self.animals.sheet
       .par_iter_mut()
-      .for_each(|animals| animals.reproduction(now))
+      .for_each(|animals| animals.reproduction(now));
    }
 
 
@@ -232,7 +233,7 @@ impl Evolution {
       .for_each(|stack| {
          // Each alive organism at the point
          stack.end_of_turn(now);
-      })
+      });
    }
 
 
@@ -276,12 +277,10 @@ impl Evolution {
                None => {
                      // Start again
                      self.b = self.b_orig.clone();
-                     match self.b.next() {
-                        None => return None,
-                        Some(j) => {
-                           self.a_cur = self.a.next(); // on next row
-                           j
-                        }
+                     {
+                         let j = self.b.next()?;
+                        self.a_cur = self.a.next(); // on next row
+                        j
                      }
                }
                Some(j) => j

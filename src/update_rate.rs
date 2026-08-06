@@ -18,7 +18,7 @@ pub struct FPS {
 impl FPS {
    // Update counter
    pub fn make_tick(&mut self) {
-      self.ticks += 1
+      self.ticks += 1;
    }
 
    // Start new second

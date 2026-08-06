@@ -35,6 +35,7 @@ pub struct Resources {
 }
 
 impl Resources {
+   #[must_use]
    pub fn new(dir: &str) -> Self {
       Self {
          illuminate_on: Handle::from_path(String::from(dir) + "/illuminate_on.png"),

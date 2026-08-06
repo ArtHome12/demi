@@ -12,10 +12,10 @@ use std::{cmp::max, fmt, ptr, marker::PhantomData};
 use rand::prelude::ThreadRng;
 use serde::{Serialize, Deserialize};
 
-use crate::genes::*;
+use crate::genes::{Digestion, Reproduction, Gene, NutritionMode};
 use crate::reactions::Reactions;
-use crate::dot::*;
-use crate::state::*;
+use crate::dot::PtrElements;
+use crate::state::FSM;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,6 +29,7 @@ pub struct Organism {
 }
 
 impl Organism {
+   #[must_use]
    pub fn new(vitality: usize, birthday: usize, gene_digestion: Digestion, gene_reproduction: Reproduction, fcm: FSM) -> Self {
       Self {
          vitality,
@@ -41,6 +42,7 @@ impl Organism {
    }
 
 
+   #[must_use]
    pub fn alive(&self, ) -> bool {
       self.vitality > 0
    }
@@ -112,11 +114,13 @@ impl Organism {
    }
 
 
+   #[must_use]
    pub fn reaction_index(&self) -> usize {
       self.gene_digestion.reaction
    }
 
    
+   #[must_use]
    pub fn nutrition_mode(&self) -> NutritionMode {
       self.gene_digestion.mode
    }
@@ -138,6 +142,7 @@ pub struct AnimalsStack {
 
 impl<'s> AnimalsStack {
 
+   #[must_use]
    pub fn new(max_animal_stack: usize) -> Self {
       Self{
          stack: vec![None; max_animal_stack],
@@ -148,11 +153,12 @@ impl<'s> AnimalsStack {
    pub fn get_mut_alive(&'s mut self) -> impl Iterator<Item = &'s mut Organism> {
       self.stack
       .iter_mut()
-      .filter_map(|item| item.as_mut().and_then(|o| o.alive().then(|| o)))
+      .filter_map(|item| item.as_mut().and_then(|o| o.alive().then_some(o)))
    }
 
 
    // Return index of first empty or occuped item
+   #[must_use]
    pub fn get_slot_index(&self, occuped: bool) -> Option<usize> {
       self.stack
       .iter()
@@ -178,7 +184,7 @@ impl<'s> AnimalsStack {
             // Place new organism
             new_born.birthday = now;
             self.stack[free_slot] = Some(new_born);
-         };
+         }
       }
    }
 
@@ -194,7 +200,7 @@ impl<'s> AnimalsStack {
          if animal.vitality == 0 {
             animal.birthday = now - animal.birthday + 1;
          }
-      })
+      });
    }
 
 
@@ -202,7 +208,7 @@ impl<'s> AnimalsStack {
       self.get_mut_alive()
       .for_each(|animal| {
          match animal.gene_digestion.mode {
-            NutritionMode::Autotroph => animal.digestion_autotroph(&ptr_elements, serial, reactions),
+            NutritionMode::Autotroph => animal.digestion_autotroph(ptr_elements, serial, reactions),
             NutritionMode::Heterotroph => {
                let food = ptr_animals.get_stack(serial).get_dead();
                if let Some(food) = food {
@@ -223,6 +229,7 @@ pub struct AnimalsSheet {
 
 
 impl AnimalsSheet {
+   #[must_use]
    pub fn new(max_serial: usize, max_animal_stack: usize) -> Self {
       let mut sheet = Vec::with_capacity(max_serial);
 
@@ -237,6 +244,7 @@ impl AnimalsSheet {
 
 
    // Return stack of organisms at point
+   #[must_use]
    pub fn get(&self, index: usize) -> &AnimalsStack {
       &self.sheet[index]
    }
@@ -251,19 +259,18 @@ impl AnimalsSheet {
    pub fn transfer(&mut self, origin: usize, dest: usize) {
 
       // If there is something to transfer and free space at destinaton
-      if let Some(source_index) = self.get(origin).get_slot_index(true) {
-         if let Some(dest_index) = self.get(dest).get_slot_index(false) {
+      if let Some(source_index) = self.get(origin).get_slot_index(true)
+         && let Some(dest_index) = self.get(dest).get_slot_index(false) {
 
             // Extract organism from previous place
             let origin_stack = self.get_mut(origin);
             let origin_place = &mut origin_stack.stack[source_index];
-            let organism = std::mem::replace(origin_place, None);
+            let organism = origin_place.take();
 
             // And put it to the new place
             let dest_stack = self.get_mut(dest);
             dest_stack.stack[dest_index] = organism;
          }
-      }
    }
 
 
@@ -292,6 +299,7 @@ pub struct PtrAnimals {
 
 
 impl PtrAnimals {
+   #[must_use]
    pub fn new(animals: &AnimalsSheet) -> Self {
       // Store raw pointers to elements
       let ptr = animals.sheet.iter()
@@ -304,6 +312,7 @@ impl PtrAnimals {
       }
    }
 
+   #[must_use]
    pub fn get_stack(&self, serial: usize) -> PtrAnimalsStack<'_> {
       PtrAnimalsStack {
          start: self.ptr[serial],
@@ -340,10 +349,10 @@ impl<'a> PtrAnimalsStack<'a> {
    // Returns the first non-living organism, leaving None in its place
    pub fn get_dead(&'a mut self) -> Option<Organism> {
       let res = self.iter_mut()
-      .find(|opt| opt.as_ref().map_or(false, |o| !o.alive()));
+      .find(|opt| opt.as_ref().is_some_and(|o| !o.alive()));
 
       match res {
-         Some(opt) => std::mem::replace(opt, None),
+         Some(opt) => opt.take(),
          None => None,
       }
    }

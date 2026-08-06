@@ -8,9 +8,9 @@ http://www.gnu.org/licenses/gpl-3.0.html
 Copyright (c) 2013-2022 by Artem Khomenko _mag12@yahoo.com.
 =============================================================================== */
 
-use crate::geom::*;
+use crate::geom::{Size, Coord, Direction};
 use crate::organism::Organism;
-use crate::genes::*;
+use crate::genes::{Digestion, NutritionMode, Reproduction};
 use crate::state::FSM;
 
 #[derive(Debug, Clone)]
@@ -44,6 +44,7 @@ impl Environment {
    const TICKS_PER_YEAR: f32 = Self::TICKS_PER_DAY * Self::DAYS_PER_YEAR;
    const HALF_YEAR: f32 = Self::TICKS_PER_YEAR / 2.0 + 0.5;
 
+   #[must_use]
    pub fn new(world_size: Size, resolution: f32, luca_reaction: usize, number_of_reactions: usize, heterotroph_color: iced::Color) -> Self {
       let world_height = world_size.y;
 
@@ -72,6 +73,7 @@ impl Environment {
    }
 
    // Returns the position of the sun at the specified time
+   #[must_use]
    pub fn sun_position(&self, tick: usize) -> Coord {
       // Times of Day
       let day_tick = tick as f32 % Self::TICKS_PER_DAY;
@@ -86,12 +88,13 @@ impl Environment {
       let y = if day < Self::HALF_YEAR {
 		   (h as f32 - self.tropic_height) / 2.0 + day * self.tropic_height / Self::HALF_YEAR
       } else {
-		   (h as f32 + self.tropic_height) / 2.0 - (day - Self::HALF_YEAR) * self.tropic_height / Self::HALF_YEAR
+		   f32::midpoint(h as f32, self.tropic_height) - (day - Self::HALF_YEAR) * self.tropic_height / Self::HALF_YEAR
       };
 
       Coord::new(x as usize, y as usize)
    }
 
+   #[must_use]
    pub fn date(tick: usize) -> (usize, usize) {
       let days = tick as f32 / Self::TICKS_PER_DAY;
       let years = (days / Self::DAYS_PER_YEAR) as usize;
@@ -100,6 +103,7 @@ impl Environment {
    }
 
    // Return serial number of bit at direction without checking bounds
+   #[must_use]
    pub fn distance(&self, direction: Direction) -> isize {
       let width = self.world_size.x as isize;
 

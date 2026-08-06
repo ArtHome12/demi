@@ -61,14 +61,14 @@ impl Evolution {
 
       // NEW CODE
       // Here, at the first stage, we must calculate the change in the state of the finite state machines.
-      let ptr_elements = PtrElements::new(&self.elements);
-      let ptr_animals = PtrAnimals::new(&self.animals);
+      let _ptr_elements = PtrElements::new(&self.elements);
+      let _ptr_animals = PtrAnimals::new(&self.animals);
 
       // For every point on the ground parallel
       self.animals.sheet
       .par_iter_mut()
       .enumerate()
-      .for_each(|(serial, animals)| {
+      .for_each(|(_serial, _animals)| {
          // Each alive organism at the point
          // animals.digestion(&ptr_elements, &ptr_animals, serial, &self.reactions)
 

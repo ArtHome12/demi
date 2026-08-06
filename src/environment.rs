@@ -11,6 +11,7 @@ Copyright (c) 2013-2022 by Artem Khomenko _mag12@yahoo.com.
 use crate::geom::*;
 use crate::organism::Organism;
 use crate::genes::*;
+use crate::state::FSM;
 
 #[derive(Debug, Clone)]
 pub struct Environment {
@@ -56,6 +57,7 @@ impl Environment {
       let luca = Organism::new(vitality, 0,
          Digestion::new(luca_reaction, number_of_reactions, NutritionMode::Autotroph),
          Reproduction::new(level),
+         FSM { index: 0, lines: vec![] },
       );
 
       Self {
